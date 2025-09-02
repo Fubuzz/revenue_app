@@ -369,13 +369,22 @@ def main():
                 'Total_Revenue': 'sum'
             }).round(0)
             
+            # Calculate percentage distribution for each year
+            annual_percentages = annual_summary.div(annual_summary['Total_Revenue'], axis=0) * 100
+            annual_percentages = annual_percentages.drop('Total_Revenue', axis=1).round(1)  # Remove total from percentages
+            
             # Transpose for horizontal view
             annual_horizontal = annual_summary.T
             annual_horizontal.columns = [f'{int(year)}' for year in annual_horizontal.columns]
             
+            # Create percentage table for display
+            annual_pct_horizontal = annual_percentages.T
+            annual_pct_horizontal.columns = [f'{int(year)}' for year in annual_pct_horizontal.columns]
+            
             st.subheader("📈 Annual Revenue Summary")
             
-            # Custom styling for annual summary
+            # Display revenue amounts
+            st.write("**Revenue by Channel ($)**")
             annual_styled = annual_horizontal.style.format("${:,.0f}").set_table_styles([
                 {'selector': 'th', 'props': [('background-color', '#f0f2f6'), 
                                              ('color', '#262730'), 
@@ -387,6 +396,9 @@ def main():
                                              ('font-weight', 'bold')]},
                 {'selector': 'tr:nth-child(even)', 'props': [('background-color', '#f9f9f9')]},
                 {'selector': 'tr:nth-child(odd)', 'props': [('background-color', '#ffffff')]},
+                {'selector': 'tr:last-child', 'props': [('background-color', '#e8f4f8'), 
+                                                        ('font-weight', 'bold'),
+                                                        ('border-top', '2px solid #1f77b4')]},
                 {'selector': '', 'props': [('border-collapse', 'collapse'), 
                                           ('margin', '25px 0'),
                                           ('font-size', '16px'),
@@ -396,6 +408,29 @@ def main():
             ])
             
             st.dataframe(annual_styled, use_container_width=True, height=220)
+            
+            # Display percentage distribution
+            st.write("**Channel Distribution (%)**")
+            annual_pct_styled = annual_pct_horizontal.style.format("{:.1f}%").set_table_styles([
+                {'selector': 'th', 'props': [('background-color', '#f0f8f0'), 
+                                             ('color', '#262730'), 
+                                             ('font-weight', 'bold'),
+                                             ('text-align', 'center'),
+                                             ('padding', '12px')]},
+                {'selector': 'td', 'props': [('text-align', 'center'), 
+                                             ('padding', '10px'),
+                                             ('font-weight', 'bold')]},
+                {'selector': 'tr:nth-child(even)', 'props': [('background-color', '#f9fff9')]},
+                {'selector': 'tr:nth-child(odd)', 'props': [('background-color', '#ffffff')]},
+                {'selector': '', 'props': [('border-collapse', 'collapse'), 
+                                          ('margin', '25px 0'),
+                                          ('font-size', '16px'),
+                                          ('border-radius', '5px'),
+                                          ('overflow', 'hidden'),
+                                          ('box-shadow', '0 0 15px rgba(0,0,0,0.1)')]}
+            ])
+            
+            st.dataframe(annual_pct_styled, use_container_width=True, height=180)
             
             # Add total row with highlighting
             total_by_year = annual_summary['Total_Revenue']
@@ -412,6 +447,180 @@ def main():
             with col4:
                 three_year_total = total_by_year.sum()
                 st.metric("🚀 3-Year Total", f"${three_year_total:,.0f}")
+            
+            st.divider()
+            
+            # Add Charts Section
+            st.subheader("📊 Revenue Visualization")
+            
+            # Chart tabs
+            chart_tab1, chart_tab2, chart_tab3, chart_tab4 = st.tabs(["📈 Monthly Trends", "🥧 Channel Mix", "📊 Annual Comparison", "📈 Growth Trends"])
+            
+            with chart_tab1:
+                # Monthly revenue trends
+                import plotly.graph_objects as go
+                from plotly.subplots import make_subplots
+                
+                fig_monthly = go.Figure()
+                
+                # Add traces for each channel
+                fig_monthly.add_trace(go.Scatter(
+                    x=df['Month_Name'], y=df['Direct_Sales_Revenue'],
+                    mode='lines+markers', name='Direct Sales',
+                    line=dict(color='#1f77b4', width=3),
+                    marker=dict(size=6)
+                ))
+                
+                fig_monthly.add_trace(go.Scatter(
+                    x=df['Month_Name'], y=df['Premium_Partner_Revenue'],
+                    mode='lines+markers', name='Premium Partners',
+                    line=dict(color='#ff7f0e', width=3),
+                    marker=dict(size=6)
+                ))
+                
+                fig_monthly.add_trace(go.Scatter(
+                    x=df['Month_Name'], y=df['Standard_Partner_Revenue'],
+                    mode='lines+markers', name='Standard Partners',
+                    line=dict(color='#2ca02c', width=3),
+                    marker=dict(size=6)
+                ))
+                
+                fig_monthly.add_trace(go.Scatter(
+                    x=df['Month_Name'], y=df['Data_Owners_Revenue'],
+                    mode='lines+markers', name='Data Owners',
+                    line=dict(color='#d62728', width=3),
+                    marker=dict(size=6)
+                ))
+                
+                # Add total revenue line (thicker)
+                fig_monthly.add_trace(go.Scatter(
+                    x=df['Month_Name'], y=df['Total_Revenue'],
+                    mode='lines+markers', name='Total Revenue',
+                    line=dict(color='#17becf', width=4),
+                    marker=dict(size=8)
+                ))
+                
+                fig_monthly.update_layout(
+                    title='Monthly Revenue Trends by Channel',
+                    xaxis_title='Month',
+                    yaxis_title='Revenue ($)',
+                    hovermode='x unified',
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                    height=500,
+                    yaxis=dict(tickformat='$,.0f'),
+                    xaxis=dict(tickangle=45)
+                )
+                
+                st.plotly_chart(fig_monthly, use_container_width=True)
+            
+            with chart_tab2:
+                # Channel mix pie charts for each year
+                col1, col2, col3 = st.columns(3)
+                
+                for idx, year in enumerate([2026, 2027, 2028]):
+                    # Get year data from the original annual_summary (before transpose)
+                    year_revenue = annual_summary[annual_summary.index == year].iloc[0]
+                    year_data = year_revenue.drop('Total_Revenue')
+                    
+                    fig_pie = go.Figure(data=[go.Pie(
+                        labels=['Direct Sales', 'Premium Partners', 'Standard Partners', 'Data Owners'],
+                        values=year_data.values,
+                        hole=0.3,
+                        textinfo='label+percent',
+                        textposition='outside',
+                        marker_colors=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
+                    )])
+                    
+                    fig_pie.update_layout(
+                        title=f'{year} Channel Mix',
+                        height=400,
+                        showlegend=False
+                    )
+                    
+                    if idx == 0:
+                        col1.plotly_chart(fig_pie, use_container_width=True)
+                    elif idx == 1:
+                        col2.plotly_chart(fig_pie, use_container_width=True)
+                    else:
+                        col3.plotly_chart(fig_pie, use_container_width=True)
+            
+            with chart_tab3:
+                # Annual comparison bar chart
+                fig_annual = go.Figure()
+                
+                channels = ['Direct_Sales_Revenue', 'Premium_Partner_Revenue', 'Standard_Partner_Revenue', 'Data_Owners_Revenue']
+                channel_labels = ['Direct Sales', 'Premium Partners', 'Standard Partners', 'Data Owners']
+                colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
+                
+                for i, (channel, label, color) in enumerate(zip(channels, channel_labels, colors)):
+                    # Get values for each year for this channel
+                    values = [annual_summary.loc[annual_summary.index == year, channel].iloc[0] for year in [2026, 2027, 2028]]
+                    
+                    fig_annual.add_trace(go.Bar(
+                        name=label,
+                        x=['2026', '2027', '2028'],
+                        y=values,
+                        marker_color=color,
+                        text=[f'${val:,.0f}' for val in values],
+                        textposition='outside'
+                    ))
+                
+                fig_annual.update_layout(
+                    title='Annual Revenue Comparison by Channel',
+                    xaxis_title='Year',
+                    yaxis_title='Revenue ($)',
+                    barmode='group',
+                    height=500,
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                    yaxis=dict(tickformat='$,.0f')
+                )
+                
+                st.plotly_chart(fig_annual, use_container_width=True)
+            
+            with chart_tab4:
+                # Stacked area chart showing cumulative growth
+                fig_area = go.Figure()
+                
+                fig_area.add_trace(go.Scatter(
+                    x=df['Month_Name'], y=df['Direct_Sales_Revenue'],
+                    mode='lines', name='Direct Sales',
+                    stackgroup='one', fill='tonexty',
+                    line=dict(color='#1f77b4')
+                ))
+                
+                fig_area.add_trace(go.Scatter(
+                    x=df['Month_Name'], y=df['Premium_Partner_Revenue'],
+                    mode='lines', name='Premium Partners',
+                    stackgroup='one', fill='tonexty',
+                    line=dict(color='#ff7f0e')
+                ))
+                
+                fig_area.add_trace(go.Scatter(
+                    x=df['Month_Name'], y=df['Standard_Partner_Revenue'],
+                    mode='lines', name='Standard Partners',
+                    stackgroup='one', fill='tonexty',
+                    line=dict(color='#2ca02c')
+                ))
+                
+                fig_area.add_trace(go.Scatter(
+                    x=df['Month_Name'], y=df['Data_Owners_Revenue'],
+                    mode='lines', name='Data Owners',
+                    stackgroup='one', fill='tonexty',
+                    line=dict(color='#d62728')
+                ))
+                
+                fig_area.update_layout(
+                    title='Revenue Growth - Stacked Area Chart',
+                    xaxis_title='Month',
+                    yaxis_title='Cumulative Revenue ($)',
+                    hovermode='x unified',
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                    height=500,
+                    yaxis=dict(tickformat='$,.0f'),
+                    xaxis=dict(tickangle=45)
+                )
+                
+                st.plotly_chart(fig_area, use_container_width=True)
             
             st.divider()
             
