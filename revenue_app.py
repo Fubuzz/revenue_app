@@ -300,7 +300,7 @@ def main():
     st.session_state.direct_growth_rate = st.sidebar.slider("Direct Growth Rate (% annual)", 0, 100, st.session_state.direct_growth_rate)
     st.session_state.direct_churn_rate = st.sidebar.slider("Direct Churn Rate (% annual)", 0, 30, st.session_state.direct_churn_rate)
     
-    # Embedded Partners
+    # Premium Partners
     st.sidebar.subheader("👑 Embedded Partners")
     st.session_state.premium_partners_count = st.sidebar.slider("Number of Premium Partners", 1, 10, st.session_state.premium_partners_count)
     st.session_state.premium_contract_value = st.sidebar.number_input("Premium Contract Value ($)", 100000, 2000000, st.session_state.premium_contract_value, step=50000)
@@ -308,7 +308,7 @@ def main():
     st.session_state.premium_subsidy_after = st.sidebar.slider("Premium Subsidy After Year 1 (%)", 0, 90, st.session_state.premium_subsidy_after)
     st.session_state.premium_leads_per_month = st.sidebar.slider("Premium Leads/Partner/Month", 1, 20, st.session_state.premium_leads_per_month)
     
-    # Reseller Partners
+    # Standard Partners
     st.sidebar.subheader("🤝 Reseller Partners")
     st.session_state.standard_partners_count = st.sidebar.slider("Number of Standard Partners", 1, 20, st.session_state.standard_partners_count)
     st.session_state.standard_contract_value = st.sidebar.number_input("Standard Contract Value ($)", 50000, 1000000, st.session_state.standard_contract_value, step=25000)
@@ -460,15 +460,20 @@ def main():
                 peak_month = df.loc[df['Total_Revenue'].idxmax()]
                 st.info(f"📊 **Peak Revenue Month:** {peak_month['Month_Name']} (${peak_month['Total_Revenue']:,.0f})")
                 
-                avg_monthly = df['Total_Revenue'].mean()
-                st.info(f"📈 **Average Monthly Revenue:** ${avg_monthly:,.0f}")
+                # Calculate YoY growth 2026 to 2027
+                revenue_2026 = total_by_year[2026]
+                revenue_2027 = total_by_year[2027]
+                yoy_2026_2027 = ((revenue_2027 - revenue_2026) / revenue_2026) * 100
+                st.info(f"📈 **YoY Growth 2026→2027:** {yoy_2026_2027:,.1f}%")
                 
             with insights_col2:
-                total_customers_end = df.iloc[-1]['Direct_Sales_Customers'] + df.iloc[-1]['Data_Owners_Customers']
-                st.info(f"👥 **Total Customers by End 2028:** {total_customers_end:,.0f}")
+                avg_monthly = df['Total_Revenue'].mean()
+                st.info(f"💰 **Average Monthly Revenue:** ${avg_monthly:,.0f}")
                 
-                growth_rate = ((df.iloc[-1]['Total_Revenue'] / df.iloc[0]['Total_Revenue']) - 1) * 100
-                st.info(f"🚀 **Total Growth (3 years):** {growth_rate:,.1f}%")
+                # Calculate YoY growth 2027 to 2028
+                revenue_2028 = total_by_year[2028]
+                yoy_2027_2028 = ((revenue_2028 - revenue_2027) / revenue_2027) * 100
+                st.info(f"🚀 **YoY Growth 2027→2028:** {yoy_2027_2028:,.1f}%")
             
             # Download option
             csv = df.to_csv(index=False)
